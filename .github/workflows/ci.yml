@@ -1,0 +1,75 @@
+# Continuous Integration: runs on every push to main and on every pull request.
+# A pull request should only be merged when this pipeline is green.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-and-tests:
+    name: Lint, type-check, test, build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: inventory_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/inventory_test?schema=public
+      LOG_LEVEL: silent
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies (also generates Prisma client)
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    needs: quality-and-tests
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        run: docker build -t inventory-api:${{ github.sha }} .

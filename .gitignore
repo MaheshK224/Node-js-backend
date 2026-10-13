@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# Prisma generated client (re-created by `npm install` / `npm run db:generate`)
+src/generated/
+
+# Environment files: secrets never go to git. Only the example is committed.
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Personal Claude Code settings
+.claude/settings.local.json
